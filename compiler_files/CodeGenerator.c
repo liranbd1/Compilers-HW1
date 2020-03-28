@@ -1,4 +1,5 @@
 #include	"CodeGenerator.h"
+#include "tree.h"
 
 /*Iterates over the Symbol table to see if the name of the variable already exists*/
 
@@ -15,7 +16,7 @@ typedef struct symbol_table {
 	This is going to be a linked list so we would also need to have two pointer here one for the Next and one for Prev
 	*/
     char name;
-    char type[10];
+    char* type;
     int address;
     int size;
 
@@ -32,6 +33,8 @@ typedef struct variable {
 
 } Variable;
 
+Variable *head;
+Symbol_table *tmp;
 int Find (char name, Variable* head)
 {
     Variable* currentPtr = head;
@@ -39,7 +42,7 @@ int Find (char name, Variable* head)
     {
         if(currentPtr->table->name == name)
         {
-            return 1;
+            return currentPtr->table->address;
         }
         currentPtr = currentPtr->next;
     }
@@ -47,19 +50,8 @@ int Find (char name, Variable* head)
 }
 
 /*Adding data to the Symbol table*/
-void Add (char name, char* type, int address, int size, Variable* head)
+void Add (Symbol_table * newSymbol, Variable* head)
 {
-    int i = 0;
-    Symbol_table* newSymbol = (Symbol_table*) malloc(sizeof(Symbol_table));
-    newSymbol->name = name;
-    newSymbol->address = address;
-    newSymbol->size = size;
-    while(type[i] != '0')
-    {
-        newSymbol->type[i] = type[i];
-        i++;
-    }
-
     // Not our first variable
     if (head != NULL)
     {
@@ -121,6 +113,7 @@ void Remove(char name, Variable* head)
 *	Input: treenode (AST)
 *	Output: prints the Pcode on the console
 */
+
 int  code_recur(treenode *root)
 {
 	if_node  *ifn;
@@ -138,13 +131,35 @@ int  code_recur(treenode *root)
 					/* Maybe you will use it later */
 					break;
 
-				case TN_IDENT:
+                    int addressToLoad;
+                case TN_IDENT: //TODO: This is the case where we deal with variables what does it mean?
 					/* variable case */
 					/*
 					*	In order to get the identifier name you have to use:
 					*	leaf->data.sval->str
+					 *	means that this is where we are going to get a new variable to save to the symbol table?
 					*/
-					leaf->data.sval->str;//What is this?
+					// So here we are getting an Identifier basically the name of the variable
+					// So all we need to do is to call the right value from our table
+                    //Finding the value in the table
+					addressToLoad = Find(*leaf->data.sval->str, head);
+					//If it is in the table we load it to the stack from the address
+					if (addressToLoad)
+                    {
+                        printf("ldc %d",addressToLoad);
+                        printf("ind");
+                    }
+					// If it is not in the table we need to load the lowest open address we got to save it
+					else
+                    {
+					    addressToLoad = head->last->table->address + head->last->table->size; //Case that the last
+					    // variable size is bigger then 1
+					    printf("ldc %d", addressToLoad);
+					    tmp->address = addressToLoad;
+					    tmp->name = *leaf->data.sval->str;
+                    } //STO is printed when we are actually getting to the end of the tree so we can save after every
+                    //thing was saved right
+
 					break;
 //Not relevant
 				case TN_COMMENT:
@@ -161,6 +176,23 @@ int  code_recur(treenode *root)
 
 				case TN_TYPE:
 					/* Maybe you will use it later */
+					if(leaf->hdr.tok == INT)
+                    {
+					    tmp->type = "int";
+					    tmp->size = sizeof(int);
+                    }
+
+					else if (leaf->hdr.tok == FLOAT)
+                    {
+					    tmp->type = "float";
+					    tmp->size = sizeof(float);
+                    }
+
+					else if(leaf->hdr.tok == DOUBLE)
+                    {
+					    tmp->type = "double";
+					    tmp->size = sizeof(double);
+                    }
 					break;
 //Relevant again
 				case TN_INT:
@@ -169,7 +201,7 @@ int  code_recur(treenode *root)
 					*	In order to get the int value you have to use: 
 					*	leaf->data.ival 
 					*/
-					leaf->data.ival; //The value of the int?
+					printf("ldc %d\n",leaf->data.ival); //The value of the int?
 					break;
 
 				case TN_REAL:
@@ -178,6 +210,7 @@ int  code_recur(treenode *root)
 					*	In order to get the real value you have to use:
 					*	leaf->data.dval
 					*/
+					printf("ldc %f\n",leaf->data.dval);
 					break;
 			}
 			break;
@@ -282,6 +315,12 @@ int  code_recur(treenode *root)
 						/* the currentNode->right->right sub tree */
 						/* Look at the output AST structure! */
 						code_recur(root->rnode->rnode);
+						printf("print\n"); //After we did all the things that are needed to be done before the print we
+						// need to call the print function so for example printf("5"); will let us the following code
+						/*
+						 * ldc 5
+						 * print
+						 */
 					}
 					else {
 						/* other function calls - for HW3 */
@@ -349,11 +388,13 @@ int  code_recur(treenode *root)
 					code_recur(root->lnode);
 					code_recur(root->rnode);
 					break;
-					
+
 				case TN_DECL:
-					/* structs declaration - for HW2 */
+					//Creating a new memory allocation for the new variable
+				    tmp = (Symbol_table*)malloc(sizeof(Symbol_table));
 					code_recur(root->lnode);
 					code_recur(root->rnode);
+                    //Here we need to add it to the symbol table
 					break;
 
 				case TN_DECL_LIST:
@@ -486,30 +527,41 @@ int  code_recur(treenode *root)
 						/* e.g. x = 5; */
 						code_recur(root->lnode);
 						code_recur(root->rnode);
+						printf("sto\n"); //Letting the code we are going to save the data into memory
+						// Hmm if we got here it means we already printed ldc 5 ldc 5 now we only need to print sto
+						// So when exactly I need to add the saving to the symbol table? here I only have the = sign...
 					}
 					else if (root->hdr.tok == PLUS_EQ){
 						/* Plus equal assignment "+=" */
 						/* e.g. x += 5; */
 						code_recur(root->lnode);
 						code_recur(root->rnode);
+						printf("inc 1\n");
+						printf("sto\n");
 					}
 					else if (root->hdr.tok == MINUS_EQ){
 						/* Minus equal assignment "-=" */
 						/* e.g. x -= 5; */
 						code_recur(root->lnode);
 						code_recur(root->rnode);
+						printf("dec 1\n");
+						printf("sto\n");
 					}
 					else if (root->hdr.tok == STAR_EQ){
 						/* Multiply equal assignment "*=" */
 						/* e.g. x *= 5; */
 						code_recur(root->lnode);
 						code_recur(root->rnode);
+						printf("mul\n");
+						printf("sto\n");
 					}
 					else if (root->hdr.tok == DIV_EQ){
 						/* Divide equal assignment "/=" */
 						/* e.g. x /= 5; */
 						code_recur(root->lnode);
 						code_recur(root->rnode);
+						printf("div\n");
+						printf("sto\n");
 					}
 					break;
 
@@ -525,90 +577,104 @@ int  code_recur(treenode *root)
 						  /* Increment token "++" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("inc 1\n");
 						  break;
 
 					  case DECR:
 						  /* Decrement token "--" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("dec 1\n");
 						  break;
 
 					  case PLUS:
 					  	  /* Plus token "+" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("add\n");
 						  break;
 
 					  case MINUS:
 					  	  /* Minus token "-" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("sub\n");
 						  break;
 
 					  case DIV:
 					  	  /* Divide token "/" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("div\n");
 						  break;
 
 					  case STAR:
-					  	  /* multiply token "*" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("mul\n");
 						  break;
 
 					  case AND:
 					  	  /* And token "&&" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("and\n");
 						  break;
 
 					  case OR:
 					  	  /* Or token "||" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("or\n");
 						  break;
 						
 					  case NOT:
 					  	  /* Not token "!" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("not\n");
 						  break;
 
 					  case GRTR:
 					  	  /* Greater token ">" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("grt\n");
 						  break;
 
 					  case LESS:
 					  	  /* Less token "<" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("les\n");
 						  break;
 						  
 					  case EQUAL:
 					  	  /* Equal token "==" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("equ\n");
 						  break;
 
 					  case NOT_EQ:
 					  	  /* Not equal token "!=" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("neq\n");
 						  break;
 
 					  case LESS_EQ:
 					  	  /* Less or equal token "<=" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("leq\n");
 						  break;
 
 					  case GRTR_EQ:
 					  	  /* Greater or equal token ">=" */
 						  code_recur(root->lnode);
 						  code_recur(root->rnode);
+						  printf("geq\n");
 						  break;
 
 					  default:
