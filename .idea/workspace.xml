@@ -49,6 +49,8 @@
       <workItem from="1585061766120" duration="1336000" />
       <workItem from="1585063111142" duration="5174000" />
       <workItem from="1585176076007" duration="1412000" />
+      <workItem from="1585407064311" duration="7924000" />
+      <workItem from="1585415573194" duration="283000" />
     </task>
     <servers />
   </component>
@@ -69,9 +71,9 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state width="640" height="476" key="ImportCMakeProjectWizard.topPanel/0.0.1920.1040@0.0.1920.1040" timestamp="1585063105398" />
-    <state x="655" y="343" key="com.intellij.ide.util.TipDialog" timestamp="1585176078139">
+    <state x="655" y="343" key="com.intellij.ide.util.TipDialog" timestamp="1585415583684">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="655" y="343" key="com.intellij.ide.util.TipDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1585176078139" />
+    <state x="655" y="343" key="com.intellij.ide.util.TipDialog/0.0.1920.1040@0.0.1920.1040" timestamp="1585415583684" />
   </component>
 </project>

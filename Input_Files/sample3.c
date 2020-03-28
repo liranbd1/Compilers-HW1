@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 void main() {
-	int a;
-	a = 5;
+	10*(5-2);
 	return;
 }
